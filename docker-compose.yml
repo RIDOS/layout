@@ -1,12 +1,18 @@
-version: '3'
+---
+
+networks:
+  shared_network:
+    name: shared_network
 
 services:
-#  app:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    ports:
-#      - '8080:8080'
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '8080:8080'
+    networks:
+      - shared_network
 
   postgres:
     container_name: postgres
@@ -17,12 +23,16 @@ services:
       POSTGRES_DB: 'db-name'
     ports:
       - '5432:5432'
+    networks:
+      - shared_network
 
   redis:
     container_name: redis
     image: redis:alpine
     ports:
       - '6379:6379'
+    networks:
+      - shared_network
 
   redis-ui:
     container_name: redis-ui
@@ -34,6 +44,8 @@ services:
       - REDIS_PORT=6379
     depends_on:
       - redis
+    networks:
+      - shared_network
 
   kafka:
     image: bitnami/kafka:3.9
@@ -49,6 +61,8 @@ services:
       KAFKA_CFG_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094'
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT'
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+    networks:
+      - shared_network
 
   kafka-init:
     image: bitnami/kafka:3.9
@@ -56,6 +70,8 @@ services:
       kafka-topics.sh --create --bootstrap-server kafka:9092 --topic apple-topic
     depends_on:
       - kafka
+    networks:
+      - shared_network
 
   kafka-ui:
     image: provectuslabs/kafka-ui
@@ -71,35 +87,5 @@ services:
       - kafka
     links:
       - kafka
-
-  tempo:
-    image: grafana/tempo:latest
-    command: [ "-config.file=/etc/tempo.yaml" ]
-    volumes:
-      - ./grafana/tempo.yaml:/etc/tempo.yaml
-    ports:
-      - '3200:3200'  # tempo
-      - '4317:4317'  # otlp grpc
-
-  prometheus:
-    image: prom/prometheus:latest
-    command:
-      - --config.file=/etc/prometheus.yaml
-      - --web.enable-remote-write-receiver
-      - --enable-feature=exemplar-storage
-    volumes:
-      - ./grafana/prometheus.yaml:/etc/prometheus.yaml
-    ports:
-      - '9090:9090'
-
-  grafana:
-    image: grafana/grafana:latest
-    volumes:
-      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
-    environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_AUTH_DISABLE_LOGIN_FORM=true
-      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor traceQLStreaming metricsSummary
-    ports:
-      - '3000:3000'
+    networks:
+      - shared_network
